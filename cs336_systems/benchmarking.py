@@ -11,8 +11,8 @@ def benchmark_model(
     n_layers: int = 6,
     n_heads: int = 8,
     device: str = "cuda",
-    n_warmup: int = 10,
-    n_steps: int = 50,
+    n_warmup: int = 5,
+    n_steps: int = 10,
     forward_only: bool = False,
     use_amp: bool = False,
 ):
@@ -46,6 +46,7 @@ def benchmark_model(
 
     optimizer = torch.optim.AdamW(model.parameters())
     scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+    import statistics
 
     # ------------------------
     # Warmup
@@ -67,10 +68,13 @@ def benchmark_model(
     # ------------------------
     # Timed Loop
     # ------------------------
-    start = time.time()
+    times = []
 
     for _ in range(n_steps):
         optimizer.zero_grad()
+
+        torch.cuda.synchronize()
+        start = time.perf_counter()
 
         with torch.cuda.amp.autocast(enabled=use_amp):
             logits = model(x)
@@ -81,13 +85,17 @@ def benchmark_model(
             scaler.step(optimizer)
             scaler.update()
 
-    torch.cuda.synchronize()
-    end = time.time()
+        torch.cuda.synchronize()
+        end = time.perf_counter()
 
-    avg_time = (end - start) / n_steps
-    print(f"Average step time: {avg_time:.6f} seconds")
+        times.append(end - start)
 
-    return avg_time
+    mean_time = statistics.mean(times)
+    std_time = statistics.stdev(times)
+
+    print(f"Mean step time: {mean_time:.6f} sec | Std: {std_time:.6f} sec")
+
+    return mean_time, std_time
 
 
 if __name__ == "__main__":
