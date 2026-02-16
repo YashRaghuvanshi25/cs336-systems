@@ -20,10 +20,13 @@ def benchmark_model(
     # Model
     # ------------------------
     model = BasicsTransformerLM(
-        vocab_size=vocab_size,
-        d_model=d_model,
-        n_layers=n_layers,
-        n_heads=n_heads,
+    vocab_size=vocab_size,
+    context_length=seq_len,
+    d_model=d_model,
+    num_layers=n_layers,
+    num_heads=n_heads,
+    d_ff=4 * d_model,      # standard transformer ratio
+    rope_theta=10000.0,    # default RoPE base
     ).to(device)
 
     if forward_only:
